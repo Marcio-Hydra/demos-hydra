@@ -165,6 +165,16 @@
   .kpi .k.hl b{color:var(--cyan)} .kpi .k.win b{color:var(--green)} .kpi .k.go b{color:var(--gold);font-size:1.15rem}
   .chartcard .cbox{position:relative;height:210px}
   .chartcard .cbox.tall{height:260px}
+  .dtwrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  table.dt{border-collapse:collapse;width:100%;font-size:.82rem}
+  table.dt th,table.dt td{padding:7px 8px;text-align:center;white-space:nowrap}
+  table.dt thead th{color:var(--muted);font-weight:600;font-size:.72rem;border-bottom:1px solid var(--line)}
+  table.dt th.cm,table.dt td.cm{text-align:left;position:sticky;left:0;background:var(--navy-2);z-index:1}
+  table.dt td.cm{font-weight:600}
+  table.dt td.v{font-family:"IBM Plex Mono",monospace;border-radius:6px;color:var(--ink)}
+  table.dt td.z{color:#3a4a58}
+  table.dt tfoot td,table.dt .tot{font-family:"IBM Plex Mono",monospace;font-weight:600;color:var(--cyan);border-top:1px solid var(--line)}
+  table.dt tfoot td.cm{color:var(--muted)}
   .origrow{display:flex;align-items:center;gap:10px;margin:9px 0}
   .origrow .lbl{font-size:.85rem;min-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .origrow .bar{flex:1;height:9px;background:var(--navy);border-radius:6px;overflow:hidden}
@@ -181,7 +191,7 @@
       <span class="eyebrow">Registo de Demos <span id="cloudDot" class="clouddot" title="Local (sem nuvem)">●</span></span>
     </div>
     <div class="stats" id="stats">
-      <div class="stat cy"><b id="s-demos">0</b><span>Demos semana</span></div>
+      <div class="stat cy"><b id="s-demos">0</b><span>Demos efetivas</span></div>
       <div class="stat gr"><b id="s-vendas">0</b><span>Vendas</span></div>
       <div class="stat go"><b id="s-fecho">0%</b><span>Fecho</span></div>
     </div>
@@ -282,8 +292,8 @@
 
     <div class="row2" style="margin-top:14px">
       <div class="row" style="margin-bottom:0">
-        <label class="f" for="telefone">Telefone cliente <span style="opacity:.6">(opc.)</span></label>
-        <input type="tel" id="telefone" placeholder="9xx xxx xxx" inputmode="numeric" autocomplete="off">
+        <label class="f" for="equipamento">Equipamento <span style="opacity:.6">(opc.)</span></label>
+        <input type="text" id="equipamento" placeholder="Equipamento" autocomplete="off">
       </div>
       <div class="row" style="margin-bottom:0">
         <label class="f" for="pvp">P.V.P. da venda <span style="opacity:.6">(€)</span></label>
@@ -336,8 +346,8 @@
       <div class="cbox tall"><canvas id="chCom"></canvas></div>
     </div>
     <div class="card chartcard">
-      <h2>Demos por dia</h2>
-      <div class="cbox"><canvas id="chDia"></canvas></div>
+      <h2>Demos por dia · por comercial</h2>
+      <div class="dtwrap"><div id="tblDia"></div></div>
     </div>
     <div class="card chartcard">
       <h2>Tipo de lead</h2>
@@ -513,7 +523,7 @@
       var d=new Date(r.data+"T00:00");
       var dd=String(d.getDate()).padStart(2,"0"), mm=String(d.getMonth()+1).padStart(2,"0");
       var color={"Venda":"var(--venda)","DNV":"var(--dnv)","Remarcado":"var(--remarcado)","Anulada":"var(--anulada)"}[r.resultado]||"var(--muted)";
-      var sub=[r.tipo, r.origem, r.cliente, r.local, (r.pvp?r.pvp+"€":"")].filter(Boolean).join(" · ");
+      var sub=[r.tipo, r.origem, r.cliente, r.local, r.equipamento, (r.pvp?r.pvp+"€":"")].filter(Boolean).join(" · ");
       var el=document.createElement("div");
       el.className="item b-"+r.balcao;
       el.innerHTML=
@@ -530,11 +540,10 @@
   function renderStats(){
     var t=todayISO(), wk=weekKey(t);
     var wkRows=store.filter(function(r){return weekKey(r.data)===wk;});
-    var demos=wkRows.length;
     var vendas=wkRows.filter(function(r){return r.resultado==="Venda";}).length;
-    // fecho = vendas / (demos efetivas: exclui remarcadas)
-    var efetivas=wkRows.filter(function(r){return r.resultado!=="Remarcado";}).length;
-    var fecho= efetivas? Math.round(vendas/efetivas*100):0;
+    // demos efetivas = trabalho efetivo (Venda + DNV); exclui remarcadas e anuladas
+    var demos=wkRows.filter(function(r){return r.resultado==="Venda"||r.resultado==="DNV";}).length;
+    var fecho= demos? Math.round(vendas/demos*100):0;
     $("#s-demos").textContent=demos;
     $("#s-vendas").textContent=vendas;
     $("#s-fecho").textContent=fecho+"%";
@@ -555,7 +564,7 @@
       resultado: segValue("resultado"),
       cliente: $("#cliente").value.trim(),
       local: $("#local").value.trim(),
-      telefone: $("#telefone").value.trim(),
+      equipamento: $("#equipamento").value.trim(),
       pvp: $("#pvp").value.trim(),
       criadoEm: new Date().toISOString()
     };
@@ -568,7 +577,7 @@
     refresh();
     // limpar só o que muda por demo
     clearSeg("slot"); clearSeg("resultado");
-    $("#cliente").value=""; $("#local").value=""; $("#tipo").value="Lead"; $("#origem").value=""; $("#telefone").value=""; $("#pvp").value="";
+    $("#cliente").value=""; $("#local").value=""; $("#tipo").value="Lead"; $("#origem").value=""; $("#equipamento").value=""; $("#pvp").value="";
     toast("Demo registada ✓");
     window.scrollTo({top:0,behavior:"smooth"});
   }
@@ -588,10 +597,10 @@
     else if(PRODUTOS.indexOf(tipo)>=0){ tipo="Lead "+tipo; }
     return {tipo:tipo, origem:origem};
   }
-  var HEADERS=["Data","Tipo","Origem","Data Lead","Entrevistador","Oferta","Nome","Localidade","Número","Telefonista","Técnico","Status Demo","Hora","PVP"];
+  var HEADERS=["Data","Tipo","Origem","Data Lead","Entrevistador","Oferta","Nome","Localidade","Número","Telefonista","Técnico","Status Demo","Hora","PVP","Equipamento"];
   function rowAOA(r){
     var f=origemFields(r);
-    return [r.data, f.tipo, f.origem, "", "", "", r.cliente||"", r.local||"", r.telefone||"", "", r.comercial, r.resultado, SLOT_HORA[r.slot]||r.slot, r.pvp||""];
+    return [r.data, f.tipo, f.origem, "", "", "", r.cliente||"", r.local||"", "", "", r.comercial, r.resultado, SLOT_HORA[r.slot]||r.slot, r.pvp||"", r.equipamento||""];
   }
   function exportExcel(mesISO){
     if(typeof XLSX==="undefined"){ return toast("Biblioteca Excel não carregou (sem rede?)",true); }
@@ -797,12 +806,12 @@
       var c=catTipo(r.tipo);
       if(c==="Leads")leads++; else if(c==="Referências")refs++; else if(c==="Inquéritos")inq++;
       else if(c==="Embaixador")emb++; else outro++;
-      porCom[r.comercial]=(porCom[r.comercial]||0)+1;
+      if(r.resultado==="Venda"||r.resultado==="DNV") porCom[r.comercial]=(porCom[r.comercial]||0)+1;
       porDia[r.data]=(porDia[r.data]||0)+1;
       if(r.origem) porOrig[r.origem]=(porOrig[r.origem]||0)+1;
     });
-    var demos=rows.length, efetivas=demos-rem;
-    var conv= efetivas? Math.round(venda/efetivas*100):0;
+    var demos=venda+dnv;
+    var conv= demos? Math.round(venda/demos*100):0;
     // faturação (soma de PVP das vendas) e PVP médio
     var fat=0, nPvp=0;
     rows.forEach(function(r){
@@ -815,13 +824,13 @@
 
     // KPIs
     $("#kpi").innerHTML=
-      kpi("hl",demos,"Demos")+kpi("win",conv+"%","Conversão")+kpi("win",venda,"Vendas")+
+      kpi("hl",demos,"Demos efetivas")+kpi("win",conv+"%","Conversão")+kpi("win",venda,"Vendas")+
       kpi("go",fmtEur(fat),"Faturação")+kpi("go",fmtEur(pvpMed),"PVP médio")+kpi("",leads,"Leads")+
       kpi("",refs,"Referências")+kpi("",inq,"Inquéritos")+kpi("",dnv,"DNV")+
       kpi("",rem,"Remarcadas")+kpi("",anul,"Anuladas");
 
     // vazio?
-    var empty=demos===0;
+    var empty=rows.length===0;
     $("#dashEmpty").hidden=!empty;
     $$("#view-dash .chartcard").forEach(function(c){ c.style.display=empty?"none":""; });
     $("#origTop").closest(".card").style.display=empty?"none":"";
@@ -849,16 +858,8 @@
         scales:{x:{grid:grid,ticks:{precision:0}},y:{grid:{display:false}}},
         plugins:{legend:{position:"bottom"}}}});
 
-    // por dia
-    var dias=Object.keys(porDia).sort();
-    var vendasDia=dias.map(function(d){return rows.filter(function(r){return r.data===d&&r.resultado==="Venda";}).length;});
-    mk("chDia",{type:"bar",
-      data:{labels:dias.map(function(d){return d.slice(8,10)+"/"+d.slice(5,7);}),datasets:[
-        {label:"Demos",data:dias.map(function(d){return porDia[d];}),backgroundColor:C.cyan,borderRadius:4},
-        {label:"Vendas",data:vendasDia,backgroundColor:C.green,borderRadius:4}]},
-      options:{responsive:true,maintainAspectRatio:false,
-        scales:{x:{grid:{display:false}},y:{grid:grid,ticks:{precision:0}}},
-        plugins:{legend:{position:"bottom"}}}});
+    // por dia, repartido por comercial — tabela matriz
+    tabelaDia(rows.filter(function(r){return r.resultado==="Venda"||r.resultado==="DNV";}));
 
     // tipo de lead
     mk("chTipo",{type:"bar",
@@ -880,6 +881,30 @@
     return '<div class="k'+(cls?" "+cls:"")+'"><b>'+val+'</b><span>'+label+'</span></div>';
   }
   function fmtEur(n){ return (Math.round(n||0)).toLocaleString("pt-PT")+"€"; }
+  function tabelaDia(rs){
+    var dayset={},comset={};
+    rs.forEach(function(r){dayset[r.data]=1;comset[r.comercial]=(comset[r.comercial]||0)+1;});
+    var dias=Object.keys(dayset).sort();
+    var coms=Object.keys(comset).sort(function(a,b){return comset[b]-comset[a];});
+    var m={},max=0,colTot={},rowTot={},grand=0;
+    coms.forEach(function(c){m[c]={};dias.forEach(function(d){m[c][d]=0;});});
+    rs.forEach(function(r){if(m[r.comercial]&&m[r.comercial][r.data]!=null)m[r.comercial][r.data]++;});
+    coms.forEach(function(c){dias.forEach(function(d){var v=m[c][d];if(v>max)max=v;colTot[d]=(colTot[d]||0)+v;rowTot[c]=(rowTot[c]||0)+v;grand+=v;});});
+    function lbl(d){return d.slice(8,10)+"/"+d.slice(5,7);}
+    function bg(v){if(!v)return "";var a=(0.12+0.5*(v/(max||1))).toFixed(2);return ' style="background:rgba(74,191,204,'+a+')"';}
+    var h='<table class="dt"><thead><tr><th class="cm">Comercial</th>';
+    dias.forEach(function(d){h+='<th>'+lbl(d)+'</th>';});
+    h+='<th class="tot">Tot</th></tr></thead><tbody>';
+    coms.forEach(function(c){
+      h+='<tr><td class="cm">'+esc(c)+'</td>';
+      dias.forEach(function(d){var v=m[c][d];h+='<td class="v'+(v?'':' z')+'"'+bg(v)+'>'+(v||'·')+'</td>';});
+      h+='<td class="tot">'+rowTot[c]+'</td></tr>';
+    });
+    h+='</tbody><tfoot><tr><td class="cm">Total</td>';
+    dias.forEach(function(d){h+='<td>'+(colTot[d]||0)+'</td>';});
+    h+='<td class="tot">'+grand+'</td></tr></tfoot></table>';
+    var el=document.getElementById("tblDia");if(el)el.innerHTML=h;
+  }
 
   // tabs
   $("#tabs").addEventListener("click",function(e){
@@ -955,7 +980,7 @@
               iRes=colIndex(head,["status demo","status","resultado","estado"]),
               iHora=colIndex(head,["hora","slot"]), iNome=colIndex(head,["nome","cliente"]),
               iLoc=colIndex(head,["localidade","local"]),
-              iTel=colIndex(head,["numero","telefone","telemovel","contacto"]),
+              iEqp=colIndex(head,["equipamento","equipment"]),
               iPvp=colIndex(head,["pvp","p.v.p.","valor","preco","montante"]);
           for(var k=1;k<aoa.length;k++){
             var row=aoa[k]; if(!row) continue;
@@ -973,7 +998,7 @@
               resultado:res,
               cliente:iNome>=0?String(row[iNome]||"").trim():"",
               local:iLoc>=0?String(row[iLoc]||"").trim():"",
-              telefone:iTel>=0?String(row[iTel]||"").trim():"",
+              equipamento:iEqp>=0?String(row[iEqp]||"").trim():"",
               pvp:iPvp>=0?String(row[iPvp]||"").trim():"",
               criadoEm:new Date().toISOString(), importado:true
             });
