@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="pt-PT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Objetivo Ibiza 2027 · Hydra</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+<style>
+:root{--bg:#0b1d33;--card:#12294a;--txt:#eef3fb;--mut:#9fb3cf;--ok:#2fbf71;--mid:#f2b134;--low:#e8604c;--sea:#3fc1d0}
+*{box-sizing:border-box}body{margin:0;font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:linear-gradient(160deg,#0b1d33,#0e3a5c);color:var(--txt);padding:22px}
+h1{margin:0;font-size:30px}h1 span{color:var(--sea)}.sub{color:var(--mut);margin:4px 0 18px}
+.top{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:18px}.k{background:var(--card);border-radius:14px;padding:14px 18px;min-width:170px}
+.k b{display:block;font-size:26px}.k span{color:var(--mut);font-size:13px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:16px}
+.card{background:var(--card);border-radius:16px;padding:16px 18px}.card h2{margin:0 0 10px;font-size:18px}
+.row{margin:10px 0}.row .n{display:flex;justify-content:space-between;font-size:14px;margin-bottom:4px}
+.bar{position:relative;height:16px;background:#0a1a30;border-radius:9px;overflow:hidden}
+.bar i{display:block;height:100%;border-radius:9px}.bar .pace{position:absolute;top:-3px;bottom:-3px;width:2px;background:#fff;opacity:.85}
+.small{font-size:12px;color:var(--mut)}.live{float:right;font-size:13px}.on{color:var(--ok)}.off{color:var(--low)}
+.win{color:var(--ok);font-weight:700}
+</style></head><body>
+<h1>🏝️ Objetivo <span>Ibiza 2027</span> <span class="live" id="live">● a ligar…</span></h1>
+<div class="sub">Concurso de 19/10 a 30/12/2026 · quem atinge o objetivo da sua função vai a Ibiza em maio · <span id="dia"></span></div>
+<div class="top" id="kpis"></div>
+<div class="grid"><div class="card"><h2>Balcões — faturação bruta<span class="small" id="liqnota"></span></h2><div id="balcoes"></div></div>
+<div class="card"><h2>Comerciais — 60.000 € e 18 vendas</h2><div id="comerciais"></div></div>
+<div class="card"><h2>Call center — supervisora: 525 demos realizadas</h2><div id="super"></div>
+<p class="small">Operadoras (160 marcações efetuadas, efetivação ≥ 70%): os dados por operadora vêm do CRM e entram numa próxima versão.</p></div></div>
+<p class="small">A linha branca em cada barra mostra onde se devia estar hoje para chegar ao objetivo a 30/12. Valores do registo de demos dos coordenadores, em tempo real. Contagem provisória: no apuramento final (30/01/2027) só contam vendas instaladas e com financiamento aprovado.</p>
+<script>
+(function(){
+var CFG={
+    apiKey: "AIzaSyDcahlnPaZRz3aq60SgUetofAoXrjB15cs",
+    authDomain: "registo-de-demos-e-dashboard.firebaseapp.com",
+    projectId: "registo-de-demos-e-dashboard",
+    storageBucket: "registo-de-demos-e-dashboard.firebasestorage.app",
+    messagingSenderId: "1030418533404",
+    appId: "1:1030418533404:web:d7926f8abbbca101d3e3d9"
+  };
+var INI="2026-10-19", FIM="2026-12-30";
+var OBJ_BALCAO={"Lisboa":350000,"Setúbal":275000,"Porto":80000,"Évora":null};
+// ÉVORA: balcao independente, nao esta no registo de demos. Valor bruto atualizado pela Altura a partir das listagens de vendas.
+var EVORA={bruto:0, atualizado:"—"};
+// LIQUIDO: apurado pela Altura no dia 5 de cada mes, cruzando com as listagens de vendas (vendas instaladas e financiadas).
+// Formato: {"ate":"AAAA-MM-DD","balcoes":{"Lisboa":0,...},"comerciais":{"Lucas":{"f":0,"n":0},...}}  — vazio ate 05/11/2026.
+var LIQUIDO=null;
+var COORD=["Vinicius","Afonso","Marcelo"]; // concorrem como coordenadores, nao como comerciais
+var SEM_IVA_DIVISOR=1; // se o PVP do registo incluir IVA, mudar para 1.23
+function norm(s){return String(s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").trim();}
+function eur(n){return Math.round(n).toLocaleString("pt-PT")+" €";}
+function pct(a,b){return b?Math.min(100,100*a/b):0;}
+function hojeISO(){var d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10);}
+function uteis(a,b){var n=0,d=new Date(a+"T00:00"),e=new Date(b+"T00:00");while(d<=e){if(d.getDay()!==0)n++;d.setDate(d.getDate()+1);}return n;}
+function pace(){var h=hojeISO();if(h<INI)return 0;if(h>FIM)return 100;return 100*uteis(INI,h)/uteis(INI,FIM);}
+function cor(p,pc){return p>=pc?"var(--ok)":p>=pc*0.75?"var(--mid)":"var(--low)";}
+function bar(lbl,val,obj,txt,extra){var p=pct(val,obj),pc=pace();return '<div class="row"><div class="n"><span>'+lbl+(p>=100?' <span class="win">✔ Ibiza</span>':'')+'</span><span>'+txt+'</span></div><div class="bar"><i style="width:'+p.toFixed(1)+'%;background:'+cor(p,pc)+'"></i><span class="pace" style="left:'+pc.toFixed(1)+'%"></span></div>'+(extra?'<div class="small">'+extra+'</div>':'')+'</div>';}
+function render(rows){
+  var R=rows.filter(function(r){return r.data>=INI&&r.data<=FIM;});
+  var B={"Lisboa":0,"Setúbal":0,"Porto":0},C={},real=0,vendas=0,fat=0;
+  R.forEach(function(r){
+    var res=r.resultado, v=parseFloat(String(r.pvp||"0").replace(",","."))||0; v=v/SEM_IVA_DIVISOR;
+    if(res==="Venda"||res==="DNV")real++;
+    if(res!=="Venda")return;
+    vendas++;fat+=v;
+    var c=norm(r.comercial), b=r.balcao;
+    if(norm(c)==="Vinicius"&&r.data>="2026-11-01")b="Porto";
+    if(B[b]!==undefined)B[b]+=v;
+    if(COORD.indexOf(c)<0){C[c]=C[c]||{f:0,n:0,b:r.balcao,nome:String(r.comercial||"").trim()};C[c].f+=v;C[c].n++;}
+  });
+  document.getElementById("dia").textContent="hoje "+hojeISO().split("-").reverse().join("/")+" · "+pace().toFixed(0)+"% do período decorrido";
+  document.getElementById("kpis").innerHTML='<div class="k"><b>'+vendas+'</b><span>vendas no concurso</span></div><div class="k"><b>'+eur(fat)+'</b><span>faturação registada</span></div><div class="k"><b>'+real+'</b><span>demos realizadas</span></div><div class="k"><b>'+Math.max(0,uteis(hojeISO()>INI?hojeISO():INI,FIM)-1)+'</b><span>dias úteis até 30/12</span></div>';
+  B["Évora"]=EVORA.bruto;
+  document.getElementById("balcoes").innerHTML=Object.keys(OBJ_BALCAO).map(function(b){
+    var liq=LIQUIDO&&LIQUIDO.balcoes&&LIQUIDO.balcoes[b]!=null?" · líquido "+eur(LIQUIDO.balcoes[b]):"";
+    if(OBJ_BALCAO[b]==null) return '<div class="row"><div class="n"><span>'+b+'</span><span>'+eur(B[b])+' · objetivo por definir</span></div><div class="small">listagens de vendas, atualizado '+EVORA.atualizado+liq+'</div></div>';
+    return bar(b,B[b],OBJ_BALCAO[b],eur(B[b])+" / "+eur(OBJ_BALCAO[b]),liq?liq.slice(3):"");}).join("");
+  document.getElementById("liqnota").textContent=LIQUIDO?"  ·  líquido apurado até "+LIQUIDO.ate.split("-").reverse().join("/"):"  ·  líquido apurado a partir de 05/11";
+  var ks=Object.keys(C).sort(function(a,b){return C[b].f-C[a].f;});
+  document.getElementById("comerciais").innerHTML=ks.length?ks.map(function(c){var x=C[c];var lq=LIQUIDO&&LIQUIDO.comerciais&&LIQUIDO.comerciais[x.nome]?" · líquido "+eur(LIQUIDO.comerciais[x.nome].f)+" ("+LIQUIDO.comerciais[x.nome].n+" vendas)":"";return bar(x.nome+' <span class="small">('+x.b+')</span>',x.f,60000,eur(x.f)+" / 60.000 €",x.n+" de 18 vendas "+(x.n>=18?"✔":"")+lq);}).join(""):'<p class="small">Ainda sem vendas no período do concurso.</p>';
+  document.getElementById("super").innerHTML=bar("Supervisora",real,525,real+" / 525 demos");
+}
+function live(s){var e=document.getElementById("live");e.className="live "+(s==="on"?"on":"off");e.textContent=s==="on"?"● ao vivo":"● sem ligação";}
+firebase.initializeApp(CFG);var db=firebase.firestore();
+firebase.auth().signInAnonymously().then(function(){
+  db.collection("demos").onSnapshot(function(snap){render(snap.docs.map(function(d){return d.data();}));live(snap.metadata.fromCache?"off":"on");},function(){live("off");});
+}).catch(function(){live("off");});
+setInterval(function(){document.getElementById("dia")&&0;},60000);
+})();
+</script></body></html>
