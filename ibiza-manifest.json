@@ -1,0 +1,12 @@
+{
+  "name": "Objetivo Ibiza 2027 · Hydra",
+  "short_name": "Ibiza 2027",
+  "start_url": "objetivo_ibiza.html",
+  "display": "standalone",
+  "background_color": "#0b1d33",
+  "theme_color": "#0b1d33",
+  "icons": [
+    {"src": "ibiza-icon-180.png", "sizes": "180x180", "type": "image/png"},
+    {"src": "ibiza-icon-512.png", "sizes": "512x512", "type": "image/png"}
+  ]
+}

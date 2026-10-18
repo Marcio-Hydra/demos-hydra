@@ -1,12 +1,20 @@
 <!DOCTYPE html>
-<html lang="pt-PT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<html lang="pt-PT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Ibiza 2027">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0b1d33">
+<link rel="apple-touch-icon" href="ibiza-icon-180.png">
+<link rel="icon" href="ibiza-icon-180.png">
+<link rel="manifest" href="ibiza-manifest.json">
 <title>Objetivo Ibiza 2027 · Hydra</title>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 <style>
 :root{--bg:#0b1d33;--card:#12294a;--txt:#eef3fb;--mut:#9fb3cf;--ok:#2fbf71;--mid:#f2b134;--low:#e8604c;--sea:#3fc1d0}
-*{box-sizing:border-box}body{margin:0;font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:linear-gradient(160deg,#0b1d33,#0e3a5c);color:var(--txt);padding:22px}
+*{box-sizing:border-box}body{margin:0;font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:linear-gradient(160deg,#0b1d33,#0e3a5c);color:var(--txt);padding:22px;padding-top:max(22px,env(safe-area-inset-top))}
 h1{margin:0;font-size:30px}h1 span{color:var(--sea)}.sub{color:var(--mut);margin:4px 0 18px}
 .top{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:18px}.k{background:var(--card);border-radius:14px;padding:14px 18px;min-width:170px}
 .k b{display:block;font-size:26px}.k span{color:var(--mut);font-size:13px}
